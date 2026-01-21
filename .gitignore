@@ -40,8 +40,6 @@ Thumbs.db
 .classpath
 .settings/
 
-# Prisma
-prisma/.env
 
 # Docker volumes
 mongodb_data/

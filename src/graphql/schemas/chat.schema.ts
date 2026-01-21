@@ -11,6 +11,7 @@ export const chatTypeDefs = gql`
     threadId: String!
     content: String!
     sender: String!
+    imageUrl: String
     createdAt: String!
   }
 
@@ -73,8 +74,8 @@ export const chatTypeDefs = gql`
   }
 
   extend type Mutation {
-    # Send message and get AI response
-    sendMessage(content: String!, threadId: ID): ChatResponse!
+    # Send message and get AI response (with optional image)
+    sendMessage(content: String!, threadId: ID, imageUrl: String): ChatResponse!
     
     # Delete thread
     deleteThread(threadId: ID!): DeleteResponse!

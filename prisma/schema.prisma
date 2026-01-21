@@ -40,6 +40,7 @@ model Message {
   thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
   content   String
   sender    String // 'user' or 'assistant'
+  imageUrl  String? // Cloudinary image URL (optional)
   createdAt DateTime @default(now())
 
   @@map("messages")

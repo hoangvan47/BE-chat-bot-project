@@ -16,6 +16,7 @@ const openai = new OpenAI({
 interface SendMessageArgs {
   content: string;
   threadId?: string;
+  imageUrl?: string;
 }
 
 interface ThreadArgs {
@@ -149,7 +150,7 @@ export const chatResolvers = {
           throw new Error('Not authenticated');
         }
 
-        const { content, threadId } = args;
+        const { content, threadId, imageUrl } = args;
         const userId = context.user.id;
 
         // Validate input
@@ -209,12 +210,13 @@ export const chatResolvers = {
 
         const aiResponse = response.choices[0].message.content || '';
 
-        // Save user message to database
+        // Save user message to database (with optional image)
         await prisma.message.create({
           data: {
             threadId: thread.id,
             content,
             sender: 'user',
+            imageUrl: imageUrl || null,
           },
         });
 
