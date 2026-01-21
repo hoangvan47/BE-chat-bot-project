@@ -1,6 +1,6 @@
 # 🔥 Chat Bot Backend - GraphQL API
 
-TypeScript + GraphQL + MongoDB + OpenAI backend API.
+TypeScript + GraphQL + MongoDB + OpenAI + Cloudinary backend API.
 
 ## 🚀 Tech Stack
 
@@ -10,31 +10,9 @@ TypeScript + GraphQL + MongoDB + OpenAI backend API.
 - **MongoDB** - NoSQL database with Prisma ORM
 - **Prisma** - Type-safe ORM
 - **OpenAI API** - GPT-4o-mini
+- **Cloudinary** - Image storage & CDN
 - **JWT** - Authentication
 - **GraphQL** - With pagination
-
----
-
-## 📁 Structure
-
-```
-backend/
-├── src/
-│   ├── graphql/
-│   │   ├── schemas/       # Type definitions
-│   │   ├── resolvers/     # Business logic + Pagination
-│   │   ├── context.ts     # JWT auth context
-│   │   └── types.ts       # TypeScript types
-│   ├── utils/             # JWT, OpenAI utilities
-│   ├── config/            # Database connection
-│   ├── app.ts             # Express + Apollo setup
-│   └── server.ts          # Entry point
-├── prisma/
-│   ├── schema.prisma      # MongoDB schema
-│   └── seed.ts            # Mock users
-├── docker-compose.yml     # MongoDB container
-└── ENV_TEMPLATE.txt       # Environment template
-```
 
 ---
 
@@ -46,6 +24,7 @@ backend/
 - Yarn package manager
 - Docker & Docker Compose
 - OpenAI API key
+- Cloudinary account (optional, for image uploads)
 
 ### 1. Install Dependencies
 
@@ -53,16 +32,32 @@ backend/
 yarn install
 ```
 
-### 2. Setup Environment
+### 2. Setup Environment Variables
 
 ```bash
-# Copy template
-cp ENV_TEMPLATE.txt .env
+# Copy example file
+cp .env.example .env
 
 # Edit .env - UPDATE THESE:
-# OPENAI_API_KEY="sk-proj-YOUR-KEY"
-# JWT_ACCESS_SECRET="your-secret"
-# JWT_REFRESH_SECRET="your-refresh-secret"
+```
+
+**Required:**
+```env
+OPENAI_API_KEY="sk-proj-YOUR-ACTUAL-KEY"
+JWT_ACCESS_SECRET="generate-strong-random-secret-here"
+JWT_REFRESH_SECRET="generate-different-strong-secret-here"
+```
+
+**Optional (for image uploads):**
+```env
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
+```
+
+**Generate strong secrets:**
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
 ### 3. Start MongoDB
@@ -74,7 +69,7 @@ docker-compose up -d
 # Wait 10 seconds
 sleep 10
 
-# Initialize Replica Set (IMPORTANT!)
+# Initialize Replica Set (ONE TIME ONLY)
 docker exec chat-bot-mongodb mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]})"
 
 # Verify
@@ -94,50 +89,48 @@ yarn prisma:push
 yarn prisma:seed
 ```
 
-### 5. Start Server
+### 5. Start Development Server
 
 ```bash
-# Development
 yarn dev
-
-# Production
-yarn build
-yarn start
 ```
 
 **Server:** http://localhost:3000
 
-**GraphQL:** http://localhost:3000/graphql
+**GraphQL Playground:** http://localhost:3000/graphql
 
 ---
 
-## 📝 Environment Variables
+## 📝 Environment Variables (.env)
 
-`ENV_TEMPLATE.txt` → `.env`:
+Based on `.env.example`:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | MongoDB connection | `mongodb://localhost:27017/chat_bot_db?replicaSet=rs0` |
-| `OPENAI_API_KEY` | OpenAI API key | `sk-proj-...` |
-| `JWT_ACCESS_SECRET` | Access token secret | `your-secret-key` |
-| `JWT_REFRESH_SECRET` | Refresh token secret | `your-refresh-key` |
-| `JWT_ACCESS_EXPIRATION` | Access token lifetime | `15m` |
-| `JWT_REFRESH_EXPIRATION` | Refresh token lifetime | `7d` |
-| `PORT` | Server port | `3000` |
-| `NODE_ENV` | Environment | `development` |
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `DATABASE_URL` | MongoDB connection | ✅ Yes | `mongodb://localhost:27017/chat_bot_db?replicaSet=rs0` |
+| `JWT_ACCESS_SECRET` | Access token secret | ✅ Yes | `<64-char-random-hex>` |
+| `JWT_REFRESH_SECRET` | Refresh token secret | ✅ Yes | `<64-char-random-hex>` |
+| `JWT_ACCESS_EXPIRATION` | Access token lifetime | ✅ Yes | `15m` |
+| `JWT_REFRESH_EXPIRATION` | Refresh token lifetime | ✅ Yes | `7d` |
+| `OPENAI_API_KEY` | OpenAI API key | ✅ Yes | `sk-proj-...` |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | ⚪ Optional | `your-cloud-name` |
+| `CLOUDINARY_API_KEY` | Cloudinary API key | ⚪ Optional | `123456...` |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret | ⚪ Optional | `abcd...` |
+| `PORT` | Server port | ✅ Yes | `3000` |
+| `NODE_ENV` | Environment | ✅ Yes | `development` |
 
 ---
 
 ## 🎯 GraphQL API
 
-### Authentication (Public)
+### Mutations (Authentication)
 
 **Register:**
 ```graphql
 mutation {
   register(email: "test@example.com", username: "testuser", password: "password123") {
     success
-    user { id, username, email }
+    user { id, username }
     accessToken
   }
 }
@@ -153,19 +146,16 @@ mutation {
 }
 ```
 
-### Chat (Protected)
+### Mutations (Chat)
 
-**HTTP Headers:**
-```json
-{
-  "Authorization": "Bearer YOUR_ACCESS_TOKEN"
-}
-```
-
-**Send Message:**
+**Send Message (with optional image):**
 ```graphql
 mutation {
-  sendMessage(content: "Hello!") {
+  sendMessage(
+    content: "Hello!", 
+    threadId: "optional-thread-id",
+    imageUrl: "https://res.cloudinary.com/your-cloud/image.jpg"
+  ) {
     success
     threadId
     aiMessage
@@ -173,17 +163,14 @@ mutation {
 }
 ```
 
+### Queries (Chat - Protected)
+
 **Get Threads (Pagination):**
 ```graphql
 query {
   threads(page: 1, limit: 10) {
-    success
     threads { id, title, latestMessage }
-    pageInfo {
-      total
-      hasNextPage
-      hasPreviousPage
-    }
+    pageInfo { total, hasNextPage }
   }
 }
 ```
@@ -193,6 +180,8 @@ See `graphql.examples.md` for more!
 ---
 
 ## 🔐 Mock Users
+
+After seeding:
 
 | Email | Password |
 |-------|----------|
@@ -205,9 +194,9 @@ See `graphql.examples.md` for more!
 ## 📦 Scripts
 
 ```bash
-yarn dev              # Development server (ts-node-dev)
+yarn dev              # Development (ts-node-dev)
 yarn build            # Build TypeScript → dist/
-yarn start            # Run production build
+yarn start            # Production server
 yarn prisma:generate  # Generate Prisma Client
 yarn prisma:push      # Push schema to MongoDB
 yarn prisma:seed      # Seed mock users
@@ -218,19 +207,19 @@ yarn prisma:seed      # Seed mock users
 ## 🐳 Docker Commands
 
 ```bash
-# Start
+# Start MongoDB
 docker-compose up -d
 
 # Stop
 docker-compose down
 
+# View logs
+docker logs chat-bot-mongodb
+
 # Restart
 docker-compose restart
 
-# Logs
-docker logs chat-bot-mongodb
-
-# Remove (with data)
+# Remove all (including data)
 docker-compose down -v
 ```
 
@@ -239,26 +228,17 @@ docker-compose down -v
 ## 🔧 Troubleshooting
 
 ### Port 3000 in use?
-
 ```bash
 lsof -ti:3000 | xargs kill -9
 ```
 
 ### MongoDB connection failed?
-
 ```bash
-# Check container
 docker ps | grep mongodb
-
-# Restart
 docker-compose restart
-
-# Re-init replica set
-docker exec chat-bot-mongodb mongosh --eval "rs.initiate(...)"
 ```
 
 ### Prisma errors?
-
 ```bash
 yarn prisma:generate
 yarn prisma:push
@@ -266,40 +246,37 @@ yarn prisma:push
 
 ---
 
-## 📊 Database (MongoDB)
+## 🚀 Deploy to Production
 
-**Connection:** `mongodb://localhost:27017/chat_bot_db`
+### Environment Variables (Production)
 
-**Collections:**
-- `users` - User accounts
-- `threads` - Chat conversations
-- `messages` - All messages (user + AI)
-
-**View in:** TablePlus, MongoDB Compass
-
----
-
-## 🚀 Deploy
-
-### Railway
-
-```bash
-railway login
-railway init
-railway up
+```env
+DATABASE_URL="mongodb+srv://user:pass@cluster.mongodb.net/chat_bot_db"
+OPENAI_API_KEY="sk-proj-your-production-key"
+JWT_ACCESS_SECRET="<strong-random-secret-64-chars>"
+JWT_REFRESH_SECRET="<different-strong-secret-64-chars>"
+CLOUDINARY_CLOUD_NAME="your-cloud"
+CLOUDINARY_API_KEY="your-key"
+CLOUDINARY_API_SECRET="your-secret"
+NODE_ENV=production
+PORT=3000
 ```
 
-**Environment Variables:**
-- `DATABASE_URL` - MongoDB Atlas connection
-- `OPENAI_API_KEY` - Your key
-- `JWT_ACCESS_SECRET` - Strong random key
-- `JWT_REFRESH_SECRET` - Strong random key
+### Deploy to Railway/Render
 
-### Render/Heroku
-
-Same environment variables required.
+1. Push code to Git
+2. Connect repo
+3. Add environment variables
+4. Deploy!
 
 ---
 
-**Built with ❤️ using TypeScript + GraphQL**
-# BE-chat-bot-project
+## 📚 Documentation
+
+- **GraphQL Examples:** `graphql.examples.md`
+- **Security Review:** `SECURITY_REVIEW.md`
+- **Cloudinary Setup:** `../CLOUDINARY_SETUP.md`
+
+---
+
+**Built with ❤️ using TypeScript + GraphQL + MongoDB**
