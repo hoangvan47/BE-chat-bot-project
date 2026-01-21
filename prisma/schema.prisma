@@ -1,0 +1,46 @@
+// Prisma Schema for MongoDB
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  username     String   @unique
+  password     String
+  refreshToken String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  threads      Thread[]
+
+  @@map("users")
+}
+
+model Thread {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String?   @db.ObjectId
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String?
+  latestMessage String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  messages      Message[]
+
+  @@map("threads")
+}
+
+model Message {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  threadId  String   @db.ObjectId
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  content   String
+  sender    String // 'user' or 'assistant'
+  createdAt DateTime @default(now())
+
+  @@map("messages")
+}
