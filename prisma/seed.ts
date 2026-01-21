@@ -27,7 +27,6 @@ async function main() {
       console.log('⏭️  User already exists: admin@test.com');
     }
 
-    // User 2: user1@test.com
     user2 = await prisma.user.findUnique({ where: { email: 'user1@test.com' } });
     if (!user2) {
       user2 = await prisma.user.create({
@@ -42,7 +41,6 @@ async function main() {
       console.log('⏭️  User already exists: user1@test.com');
     }
 
-    // User 3: user2@test.com
     user3 = await prisma.user.findUnique({ where: { email: 'user2@test.com' } });
     if (!user3) {
       user3 = await prisma.user.create({
@@ -57,7 +55,6 @@ async function main() {
       console.log('⏭️  User already exists: user2@test.com');
     }
 
-    // Create sample thread for user1 (only if doesn't exist)
     const existingThread = await prisma.thread.findFirst({
       where: { userId: user2.id },
     });

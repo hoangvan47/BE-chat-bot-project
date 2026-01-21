@@ -200,15 +200,43 @@ export const chatResolvers = {
             'You are a helpful AI assistant for template.net. Provide concise, accurate, and friendly responses.',
         });
 
-        // Call OpenAI API
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: aiMessages as any,
-          max_tokens: 500,
-          temperature: 0.7,
-        });
+        // Call OpenAI API with fallback to mock
+        let aiResponse = '';
+        let usage = {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+        };
 
-        const aiResponse = response.choices[0].message.content || '';
+        try {
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: aiMessages as any,
+            max_tokens: 500,
+            temperature: 0.7,
+          });
+
+          aiResponse = response.choices[0].message.content || '';
+          usage = {
+            promptTokens: response.usage?.prompt_tokens || 0,
+            completionTokens: response.usage?.completion_tokens || 0,
+            totalTokens: response.usage?.total_tokens || 0,
+          };
+        } catch (openaiError: any) {
+          // Fallback to mock response when OpenAI fails
+          console.warn('⚠️ OpenAI API failed, using mock response:', openaiError.message);
+          
+          const mockResponses = [
+            `Xin chào! Bạn vừa hỏi về "${content}". Đây là câu trả lời mock từ hệ thống.`,
+            'Tôi là AI assistant giả lập. Hiện tại đang dùng mock response để bạn test UI.',
+            `Câu hỏi hay! Về "${content}", tôi sẽ trả lời chi tiết khi connect với AI thực.`,
+            'Chào bạn! Tôi đang trong mock mode. Thêm OpenAI credits để chat với GPT thực nhé!',
+            `Tôi hiểu bạn đang nói về "${content}". Mock AI đang hoạt động tốt!`,
+            'Template.NET AI Assistant (Mock Mode): Sẵn sàng giúp bạn test ứng dụng!',
+          ];
+          
+          aiResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+        }
 
         // Save user message to database (with optional image)
         await prisma.message.create({
@@ -240,11 +268,7 @@ export const chatResolvers = {
           message: 'Message sent successfully',
           threadId: thread.id,
           aiMessage: aiResponse,
-          usage: {
-            promptTokens: response.usage?.prompt_tokens || 0,
-            completionTokens: response.usage?.completion_tokens || 0,
-            totalTokens: response.usage?.total_tokens || 0,
-          },
+          usage,
         };
       } catch (error: any) {
         console.error('Send message error:', error);
