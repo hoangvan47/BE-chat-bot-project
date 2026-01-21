@@ -251,7 +251,7 @@ yarn prisma:push
 ### Environment Variables (Production)
 
 ```env
-DATABASE_URL="mongodb+srv://user:pass@cluster.mongodb.net/chat_bot_db"
+DATABASE_URL=
 OPENAI_API_KEY="sk-proj-your-production-key"
 JWT_ACCESS_SECRET="<strong-random-secret-64-chars>"
 JWT_REFRESH_SECRET="<different-strong-secret-64-chars>"
